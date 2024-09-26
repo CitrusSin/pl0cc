@@ -16,4 +16,5 @@ add_executable(
         nondeterministic_automaton.hpp
         regex.hpp
         regex_parse.hpp
+        token_storage.cpp
 )

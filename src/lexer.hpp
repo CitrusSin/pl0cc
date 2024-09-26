@@ -13,30 +13,62 @@
 #include "deterministic_automaton.hpp"
 
 namespace pl0cc {
-    class Token {
+    enum class TokenType {
+        COMMENT   = 0,  IF        = 1,  ELSE      = 2,  FOR       = 3,  WHILE     = 4,
+        BREAK     = 5,  RETURN    = 6,  CONTINUE  = 7,  FLOAT     = 8,  INT       = 9,
+        CHAR      = 10, SYMBOL    = 11, NUMBER    = 12, OP_PLUS   = 13, OP_SUB    = 14,
+        OP_MUL    = 15, OP_DIV    = 16, OP_MOD    = 17, OP_GT     = 18, OP_GE     = 19,
+        OP_LT     = 20, OP_LE     = 21, OP_NEQ    = 22, OP_EQU    = 23, OP_NOT    = 24,
+        OP_AND    = 25, OP_OR     = 26, OP_COMMA  = 27, OP_ASSIGN = 28, LMBRACKET = 29,
+        RMBRACKET = 30, LSBRACKET = 31, RSBRACKET = 32, LLBRACKET = 33, RLBRACKET = 34,
+        SEMICOLON = 35, DOT       = 36, NEWLINE   = 37, TOKEN_EOF = 38, CMTSTOP   = 39
+    };
+
+    std::string tokenTypeName(TokenType type);
+
+    class RawToken {
     public:
-        enum TokenType {
-            COMMENT   = 0,  IF        = 1,  ELSE      = 2,  FOR       = 3,  WHILE     = 4,
-            BREAK     = 5,  RETURN    = 6,  CONTINUE  = 7,  FLOAT     = 8,  INT       = 9,
-            CHAR      = 10, SYMBOL    = 11, NUMBER    = 12, OP_PLUS   = 13, OP_SUB    = 14,
-            OP_MUL    = 15, OP_DIV    = 16, OP_MOD    = 17, OP_GT     = 18, OP_GE     = 19,
-            OP_LT     = 20, OP_LE     = 21, OP_NEQ    = 22, OP_EQU    = 23, OP_NOT    = 24,
-            OP_AND    = 25, OP_OR     = 26, OP_COMMA  = 27, OP_ASSIGN = 28, LMBRACKET = 29,
-            RMBRACKET = 30, LSBRACKET = 31, RSBRACKET = 32, LLBRACKET = 33, RLBRACKET = 34,
-            SEMICOLON = 35, DOT       = 36, NEWLINE   = 37, TOKEN_EOF = 38, CMTSTOP   = 39
-        };
 
-        explicit Token(TokenType type, std::string content = "");
+        explicit RawToken(TokenType type, std::string content = "")
+            : _type(type), _content(std::move(content)) {}
 
-        [[nodiscard]] TokenType type() const;
-        [[nodiscard]] const std::string& content() const;
+        [[nodiscard]] TokenType type() const {return _type;}
+        [[nodiscard]] const std::string& content() const {return _content;}
+        [[nodiscard]] std::string& content() {return _content;}
 
         [[nodiscard]] std::string serialize() const;
-
-        static std::string serializeTokenType(TokenType type);
     private:
         TokenType _type;
         std::string _content;
+    };
+
+    struct Token {
+        TokenType type;
+        int seman;
+
+        Token(TokenType type, int seman) : type(type), seman(seman) {}
+    };
+
+    class TokenStorage {
+    public:
+        TokenStorage();
+
+        void pushToken(RawToken token);
+
+        void serializeTo(std::ostream& ss) const;
+
+        [[nodiscard]] size_t size() const { return tokens.size(); }
+        Token operator[](size_t idx) const { return tokens[idx]; }
+
+        [[nodiscard]] auto begin() -> std::vector<Token>::iterator {return tokens.begin();}
+        [[nodiscard]] auto begin() const -> std::vector<Token>::const_iterator {return tokens.begin();}
+        [[nodiscard]] auto end() -> std::vector<Token>::iterator {return tokens.end();}
+        [[nodiscard]] auto end() const -> std::vector<Token>::const_iterator {return tokens.end();}
+    private:
+        std::vector<Token> tokens;
+
+        std::vector<std::string> symbols, numberConstants;
+        std::map<std::string, int> symbolMap, numberConstantMap;
     };
 
     class Lexer {
@@ -49,7 +81,7 @@ namespace pl0cc {
             [[nodiscard]] constexpr int columnNumber() const {return colNum;}
             [[nodiscard]] constexpr int tokenLength() const {return tokenLen;}
             [[nodiscard]] std::set<int> tokenTypes() const {return readingTokenType;}
-            void reportErrorTo(std::ostream &output);
+            void reportErrorTo(std::ostream &output, bool colorful = true);
         private:
             Lexer *lexer;
             int lineNum, colNum, tokenLen;
@@ -58,6 +90,8 @@ namespace pl0cc {
 
         Lexer();
 
+        void setTokenStorage(TokenStorage* storage);
+
         // true if new token generated
         bool feedChar(char ch);
         void feedStream(std::istream& stream);
@@ -65,7 +99,7 @@ namespace pl0cc {
 
         [[nodiscard]] bool tokenEmpty() const;
         [[nodiscard]] size_t tokenCount() const;
-        Token takeToken();
+        RawToken takeToken();
 
         [[nodiscard]] bool stopped() const;
 
@@ -75,7 +109,8 @@ namespace pl0cc {
 
     private:
         DeterministicAutomaton::State state;
-        std::deque<Token> tokenQueue;
+        std::deque<RawToken> tokenQueue;
+        TokenStorage *storage;
         int lineCounter, columnCounter;
         bool hasStopped;
         std::string readingToken;

@@ -7,7 +7,7 @@
 #include "lexer.hpp"
 
 using namespace std;
-using pl0cc::Lexer, pl0cc::Token;
+using pl0cc::Lexer, pl0cc::RawToken, pl0cc::TokenStorage;
 
 const char* CONSOLE_RED = "\033[31m";
 const char* CONSOLE_GREEN = "\033[32m";
@@ -38,8 +38,12 @@ int main(int argc, char **argv) {
     }
 
     auto absoluteInputPath = filesystem::absolute(inputFilename);
+
     ifstream input(inputFilename);
     Lexer lexer;
+    TokenStorage ts;
+
+    lexer.setTokenStorage(&ts);
     lexer.feedStream(input);
     input.close();
 
@@ -53,10 +57,7 @@ int main(int argc, char **argv) {
         cerr << CONSOLE_GREEN << "0" << CONSOLE_RESET << " errors occurred." << endl;
 
         ofstream output(outputFilename);
-        while (!lexer.tokenEmpty()) {
-            auto token = lexer.takeToken();
-            output << token.serialize() << endl;
-        }
+        ts.serializeTo(output);
         output << flush;
         output.close();
     } else {
