@@ -12,7 +12,7 @@ namespace pl0cc {
     class DeterministicAutomaton {
     public:
         using State = size_t;
-        using EncodeUnit = int;
+        using EncodeUnit = unsigned char;
         constexpr static const State REJECT = std::numeric_limits<size_t>::max();
 
         DeterministicAutomaton();

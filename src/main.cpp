@@ -15,7 +15,7 @@ const char* CONSOLE_RESET = "\033[0m";
 
 int main(int argc, char **argv) {
     std::string inputFilename, outputFilename;
-    int rd = 0;
+    int rd = 1;
     while (rd < argc) {
         std::string_view s(argv[rd]);
         if (s == "-o" && rd + 1 < argc) {
@@ -38,7 +38,6 @@ int main(int argc, char **argv) {
     }
 
     ifstream input(inputFilename);
-    ofstream output(outputFilename);
     Lexer lexer;
     lexer.feedStream(input);
     input.close();
@@ -48,16 +47,17 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    while (!lexer.tokenEmpty()) {
-        auto token = lexer.takeToken();
-        output << token.serialize() << endl;
-    }
-    output << flush;
-    output.close();
-
     cerr << "pl0cc completed with ";
     if (lexer.errorCount() == 0) {
         cerr << CONSOLE_GREEN << "0" << CONSOLE_RESET << " errors occurred." << endl;
+
+        ofstream output(outputFilename);
+        while (!lexer.tokenEmpty()) {
+            auto token = lexer.takeToken();
+            output << token.serialize() << endl;
+        }
+        output << flush;
+        output.close();
     } else {
         cerr << CONSOLE_RED << lexer.errorCount() << CONSOLE_RESET << " errors occurred." << endl;
         cerr << endl;
@@ -66,19 +66,23 @@ int main(int argc, char **argv) {
 
             string srcLine = lexer.sourceLine(report.lineNumber());
             stringstream hintLine;
+            bool needReset = false;
             for (int idx = 0; idx < srcLine.size(); idx++) {
                 if (idx == report.columnNumber()) {
                     hintLine << CONSOLE_RED;
+                    needReset = true;
                 }
                 if (idx == report.columnNumber() + report.tokenLength()) {
                     hintLine << CONSOLE_RESET;
+                    needReset = false;
                 }
                 hintLine << srcLine[idx];
             }
+            if (needReset) hintLine << CONSOLE_RESET;
 
             cerr << "Error " << i << ": " << endl;
             cerr << "---------------------" << endl;
-            cout << report.lineNumber()+1 << " |\t" << hintLine.str() << endl << endl;
+            cerr << report.lineNumber()+1 << " |\t" << hintLine.str() << endl << endl;
         }
     }
 

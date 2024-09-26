@@ -157,7 +157,7 @@ namespace pl0cc {
         
         std::string selContent = selector.content();
 
-        std::array<bool, std::numeric_limits<char>::max()+1> charSel{};
+        std::array<bool, std::numeric_limits<unsigned char>::max()+1> charSel{};
         charSel.fill(false);
         bool negative = false;
         for (size_t i = 0; i < selContent.size(); i++) {
@@ -201,7 +201,7 @@ namespace pl0cc {
         startState = atm.startSingleState();
         atm.setStopState(stopState = atm.addState());
         
-        for (char ch=0x0; ch>=0 && ch<=std::numeric_limits<char>::max(); ch++) {
+        for (unsigned int ch=0x0; ch<=std::numeric_limits<unsigned char>::max(); ch++) {
             if (charSel[ch]) {
                 atm.addJump(startState, ch, stopState);
             }

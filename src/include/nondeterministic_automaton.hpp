@@ -14,7 +14,7 @@ namespace pl0cc {
     class NondeterministicAutomaton {
     public:
         using SingleState = size_t;
-        using EncodeUnit = int;
+        using EncodeUnit = unsigned char;
         
         class State : private std::set<SingleState> {
         public:

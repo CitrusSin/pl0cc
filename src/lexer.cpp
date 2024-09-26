@@ -8,8 +8,10 @@
 #include <cstring>
 #include <utility>
 
+using namespace std::literals;
+
 namespace pl0cc {
-    constexpr static const std::array TOKEN_REGEXS {
+    constexpr static const char* TOKEN_REGEXS[] {
             /*COMMENT*/ "//|/\\*",
                         "if",
                         "else",
@@ -61,8 +63,9 @@ namespace pl0cc {
         auto start = nfa.startSingleState();
         nfa.addJump(start, ' ', nfa.startSingleState());
         nfa.addStateMarkup(start, 0);   // Mark 0 to start state for feedChar()
-        for (int type = 0; type < TOKEN_REGEXS.size(); type++) {
-            if (strlen(TOKEN_REGEXS[type]) == 0) {
+        constexpr const int regexLen = sizeof TOKEN_REGEXS / sizeof TOKEN_REGEXS[0];
+        for (int type = 0; type < regexLen; type++) {
+            if (/*strlen(TOKEN_REGEXS[type]) == 0*/ TOKEN_REGEXS[type][0] == '\0') {
                 continue;
             }
             auto subAtm = automatonFromRegexString(TOKEN_REGEXS[type]);
@@ -89,6 +92,7 @@ namespace pl0cc {
 
         State trialState = automaton->nextState(state, ch);
 
+        bool tokenGenerated = false;
         // When rejected, a new token shall be generated or there's an error happening
         if (trialState == DeterministicAutomaton::REJECT) {
             // Check if it is an error
@@ -96,9 +100,9 @@ namespace pl0cc {
             if (!automaton->isStopState(state) || marks.empty()) {
                 int colStart = columnCounter - (int)readingToken.size();
                 if (colStart < 0) colStart = 0;
-                errors.emplace_back(lineCounter, colStart, readingToken.size() + 1);
+                if (lastCommentToken.empty()) errors.emplace_back(lineCounter, colStart, readingToken.size() + 1);
                 readingToken.clear();
-                trialState = automaton->startState();
+                trialState = automaton->nextState(automaton->startState(), ch);
             } else {
                 TokenType type = TokenType(*marks.begin()); // Take the smallest mark (see token type class id as priority)
 
@@ -107,7 +111,7 @@ namespace pl0cc {
                     columnCounter = 0;
                     storedLines.emplace_back();
                     if (lastCommentToken == "//") {
-                        // If single line comment, exit comment mode
+                        // If comment mode is in single line comment, exit comment mode
                         lastCommentToken = "";
                     }
                 } else if (marks.count(Token::CMTSTOP) && !lastCommentToken.empty() && lastCommentToken == "/*") {
@@ -116,17 +120,25 @@ namespace pl0cc {
                     lastCommentToken = readingToken;
                 }
 
-                if (lastCommentToken.empty() && type != Token::CMTSTOP && type != Token::COMMENT) {
+                if (
+                        // Do not really add token when comment mode is on
+                        lastCommentToken.empty() && type != Token::CMTSTOP && type != Token::COMMENT
+                        // Even if comment mode is on, newline still works to make sure line number is correct
+                        || type == TokenType::NEWLINE
+                ) {
                     // Do not really add token when comment mode is on
                     tokenQueue.emplace_back(type, std::move(readingToken));
+                    tokenGenerated = true;
                 }
                 readingToken = std::string("");
                 trialState = automaton->nextState(automaton->startState(), ch);
             }
-        } else if (!lastCommentToken.empty() && lastCommentToken == "/*" && automaton->stateMarkup(state).count(Token::CMTSTOP)) {
+        } else if (lastCommentToken == "/*" && automaton->stateMarkup(state).count(Token::CMTSTOP)) {
+            // Even the automaton has not stopped, comment mode should be stopped when CMTSTOP appears
             // Stop comment mode
             lastCommentToken = "";
             trialState = automaton->startState();
+            readingToken.clear();
         }
 
         state = trialState;
@@ -134,7 +146,7 @@ namespace pl0cc {
         storedLines.back().push_back(ch);
 
         if (trialState != automaton->startState()) readingToken.push_back(ch);
-        return false;
+        return tokenGenerated;
     }
 
     void Lexer::feedStream(std::istream &stream) {
@@ -216,7 +228,7 @@ namespace pl0cc {
     }
 
     std::string Token::serialize() const {
-        constexpr static const std::array typeMap {
+        constexpr static const char* typeMap[] {
             "COMMENT", "IF", "ELSE", "FOR", "WHILE",
             "BREAK", "RETURN", "CONTINUE", "FLOAT", "INT",
             "CHAR", "SYMBOL", "NUMBER", "OP_PLUS", "OP_SUB",

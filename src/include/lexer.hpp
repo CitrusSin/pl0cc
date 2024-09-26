@@ -30,7 +30,7 @@ namespace pl0cc {
         [[nodiscard]] TokenType type() const;
         [[nodiscard]] const std::string& content() const;
 
-        std::string serialize() const;
+        [[nodiscard]] std::string serialize() const;
     private:
         TokenType _type;
         std::string _content;
