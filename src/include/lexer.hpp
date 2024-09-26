@@ -8,6 +8,7 @@
 #include <iostream>
 #include <deque>
 #include <memory>
+#include <utility>
 
 #include "deterministic_automaton.hpp"
 
@@ -31,6 +32,8 @@ namespace pl0cc {
         [[nodiscard]] const std::string& content() const;
 
         [[nodiscard]] std::string serialize() const;
+
+        static std::string serializeTokenType(TokenType type);
     private:
         TokenType _type;
         std::string _content;
@@ -40,13 +43,17 @@ namespace pl0cc {
     public:
         class ErrorReport {
         public:
-            constexpr ErrorReport(int lineCounter, int colCounter, int tokenLength) :
-                    lineNum(lineCounter), colNum(colCounter), tokenLen(tokenLength) {}
-            [[nodiscard]] constexpr inline int lineNumber() const {return lineNum;}
-            [[nodiscard]] constexpr inline int columnNumber() const {return colNum;}
-            [[nodiscard]] constexpr inline int tokenLength() const {return tokenLen;}
+            ErrorReport(Lexer *lexer, int lineCounter, int colCounter, int tokenLength, std::set<int> readingTokenType) :
+                    lexer(lexer), lineNum(lineCounter), colNum(colCounter), tokenLen(tokenLength), readingTokenType(std::move(readingTokenType)) {}
+            [[nodiscard]] constexpr int lineNumber() const {return lineNum;}
+            [[nodiscard]] constexpr int columnNumber() const {return colNum;}
+            [[nodiscard]] constexpr int tokenLength() const {return tokenLen;}
+            [[nodiscard]] std::set<int> tokenTypes() const {return readingTokenType;}
+            void reportErrorTo(std::ostream &output);
         private:
+            Lexer *lexer;
             int lineNum, colNum, tokenLen;
+            std::set<int> readingTokenType;
         };
 
         Lexer();

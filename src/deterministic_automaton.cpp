@@ -186,3 +186,7 @@ std::string DeterministicAutomaton::serialize() const {
     return serializeStream.str();
 }
 
+void DeterministicAutomaton::removeAllStateMarkup(State s) {
+    stateMarks[s].clear();
+}
+

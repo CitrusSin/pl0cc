@@ -1,13 +1,14 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 #include <string>
 #include <string_view>
 
 #include "lexer.hpp"
 
 using namespace std;
-using pl0cc::Lexer;
+using pl0cc::Lexer, pl0cc::Token;
 
 const char* CONSOLE_RED = "\033[31m";
 const char* CONSOLE_GREEN = "\033[32m";
@@ -37,6 +38,7 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+    auto absoluteInputPath = filesystem::absolute(inputFilename);
     ifstream input(inputFilename);
     Lexer lexer;
     lexer.feedStream(input);
@@ -64,25 +66,9 @@ int main(int argc, char **argv) {
         for (size_t i=0; i<lexer.errorCount(); i++) {
             Lexer::ErrorReport report = lexer.errorReportAt(i);
 
-            string srcLine = lexer.sourceLine(report.lineNumber());
-            stringstream hintLine;
-            bool needReset = false;
-            for (int idx = 0; idx < srcLine.size(); idx++) {
-                if (idx == report.columnNumber()) {
-                    hintLine << CONSOLE_RED;
-                    needReset = true;
-                }
-                if (idx == report.columnNumber() + report.tokenLength()) {
-                    hintLine << CONSOLE_RESET;
-                    needReset = false;
-                }
-                hintLine << srcLine[idx];
-            }
-            if (needReset) hintLine << CONSOLE_RESET;
-
-            cerr << "Error " << i << ": " << endl;
-            cerr << "---------------------" << endl;
-            cerr << report.lineNumber()+1 << " |\t" << hintLine.str() << endl << endl;
+            string srcFile = absoluteInputPath.string() + ":" + to_string(report.lineNumber() + 1) + ":" + to_string(report.columnNumber() + 1);
+            cerr << "Error " << (i+1) << " at " << srcFile << ": " << std::endl;
+            report.reportErrorTo(cerr);
         }
     }
 

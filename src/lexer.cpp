@@ -11,7 +11,7 @@
 using namespace std::literals;
 
 namespace pl0cc {
-    constexpr static const char* TOKEN_REGEXS[] {
+    constexpr static const char* tokenRegexs[] {
             /*COMMENT*/ "//|/\\*",
                         "if",
                         "else",
@@ -53,27 +53,48 @@ namespace pl0cc {
             /*EOF*/     "",
             /*CMTSTOP*/ "\\*/"
     };
+    constexpr static const char* typeMap[] {
+            "COMMENT", "IF", "ELSE", "FOR", "WHILE",
+            "BREAK", "RETURN", "CONTINUE", "FLOAT", "INT",
+            "CHAR", "SYMBOL", "NUMBER", "OP_PLUS", "OP_SUB",
+            "OP_MUL", "OP_DIV", "OP_MOD", "OP_GT", "OP_GE",
+            "OP_LT", "OP_LE", "OP_NEQ", "OP_EQU", "OP_NOT",
+            "OP_AND", "OP_OR", "OP_COMMA", "OP_ASSIGN", "LMBRACKET",
+            "RMBRACKET", "LSBRACKET", "RSBRACKET", "LLBRACKET", "RLBRACKET",
+            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "CMTSTOP"
+    };
 
     static std::unique_ptr<const DeterministicAutomaton> automaton = nullptr;
 
     void Lexer::buildAutomaton() {
+        using SingleState = NondeterministicAutomaton::SingleState;
+
         if (automaton != nullptr) return;
 
         NondeterministicAutomaton nfa;
         auto start = nfa.startSingleState();
         nfa.addJump(start, ' ', nfa.startSingleState());
         nfa.addStateMarkup(start, 0);   // Mark 0 to start state for feedChar()
-        constexpr const int regexLen = sizeof TOKEN_REGEXS / sizeof TOKEN_REGEXS[0];
+        constexpr const int regexLen = sizeof tokenRegexs / sizeof tokenRegexs[0];
         for (int type = 0; type < regexLen; type++) {
-            if (/*strlen(TOKEN_REGEXS[type]) == 0*/ TOKEN_REGEXS[type][0] == '\0') {
+            if (/*strlen(tokenRegexs[type]) == 0*/ tokenRegexs[type][0] == '\0') {
                 continue;
             }
-            auto subAtm = automatonFromRegexString(TOKEN_REGEXS[type]);
-            subAtm.addEndStateMarkup(type);
+            auto subAtm = automatonFromRegexString(tokenRegexs[type]);
+            /*
+             * Mark end nodes with 2*type+1 and mark non-end nodes with 2*type,
+             * which will be splited by splitMarkup() below
+             */
+            subAtm.addEndStateMarkup((type << 1) | 1);
+            for (SingleState subState = 0; subState < subAtm.stateCount(); subState++) {
+                if (!subAtm.isStopState(subState)) subAtm.addStateMarkup(subState, type << 1);
+            }
             nfa.addAutomaton(start, subAtm);
         }
 
-        automaton = std::make_unique<DeterministicAutomaton>(nfa.toDeterministic());
+        auto dfa = std::make_unique<DeterministicAutomaton>(nfa.toDeterministic());
+        dfa->removeAllStateMarkup(dfa->startState());
+        automaton = std::move(dfa);
     }
 
     Lexer::Lexer() :
@@ -86,6 +107,18 @@ namespace pl0cc {
         state = automaton->startState();
     }
 
+    static std::pair<std::set<int>, std::set<int>> splitMarkup(const std::set<int>& markups) {
+        std::set<int> p0, p1;
+        for (int m : markups) {
+            if (m & 1) {
+                p1.insert(m >> 1);
+            } else {
+                p0.insert(m >> 1);
+            }
+        }
+        return std::make_pair(p0, p1);
+    }
+
     bool Lexer::feedChar(char ch) {
         using State = DeterministicAutomaton::State;
         using TokenType = Token::TokenType;
@@ -96,25 +129,34 @@ namespace pl0cc {
         // When rejected, a new token shall be generated or there's an error happening
         if (trialState == DeterministicAutomaton::REJECT) {
             // Check if it is an error
-            const std::set<int> &marks = automaton->stateMarkup(state);
-            if (!automaton->isStopState(state) || marks.empty()) {
+            auto [procedureMarks, stopMarks] = splitMarkup(automaton->stateMarkup(state));
+            if (!automaton->isStopState(state) || stopMarks.empty()) {
                 int colStart = columnCounter - (int)readingToken.size();
                 if (colStart < 0) colStart = 0;
-                if (lastCommentToken.empty()) errors.emplace_back(lineCounter, colStart, readingToken.size() + 1);
+                if (lastCommentToken.empty()) {
+                    errors.emplace_back(this, lineCounter, colStart, readingToken.size() + 1, procedureMarks);
+                }
                 readingToken.clear();
                 trialState = automaton->nextState(automaton->startState(), ch);
+                if (trialState == DeterministicAutomaton::REJECT) {
+                    trialState = automaton->startState();
+                }
             } else {
-                TokenType type = TokenType(*marks.begin()); // Take the smallest mark (see token type class id as priority)
+                TokenType type = TokenType(*stopMarks.begin()); // Take the smallest mark (see token type class id as priority)
 
                 if (type == Token::NEWLINE) {
                     lineCounter++;
                     columnCounter = 0;
+                    // Remove redundant newlines
+                    while (storedLines.back().back() == '\r' || storedLines.back().back() == '\n') {
+                        storedLines.back().pop_back();
+                    }
                     storedLines.emplace_back();
                     if (lastCommentToken == "//") {
                         // If comment mode is in single line comment, exit comment mode
                         lastCommentToken = "";
                     }
-                } else if (marks.count(Token::CMTSTOP) && !lastCommentToken.empty() && lastCommentToken == "/*") {
+                } else if (stopMarks.count(Token::CMTSTOP) && !lastCommentToken.empty() && lastCommentToken == "/*") {
                     lastCommentToken = "";
                 } else if (type == Token::COMMENT) {
                     lastCommentToken = readingToken;
@@ -126,12 +168,21 @@ namespace pl0cc {
                         // Even if comment mode is on, newline still works to make sure line number is correct
                         || type == TokenType::NEWLINE
                 ) {
-                    // Do not really add token when comment mode is on
                     tokenQueue.emplace_back(type, std::move(readingToken));
                     tokenGenerated = true;
                 }
                 readingToken = std::string("");
                 trialState = automaton->nextState(automaton->startState(), ch);
+                if (trialState == DeterministicAutomaton::REJECT) {
+                    // Report error
+                    int colStart = columnCounter - (int)readingToken.size();
+                    if (colStart < 0) colStart = 0;
+                    if (lastCommentToken.empty()) {
+                        errors.emplace_back(this, lineCounter, colStart, readingToken.size() + 1, std::set<int>{});
+                    }
+                    readingToken.clear();
+                    trialState = automaton->startState();
+                }
             }
         } else if (lastCommentToken == "/*" && automaton->stateMarkup(state).count(Token::CMTSTOP)) {
             // Even the automaton has not stopped, comment mode should be stopped when CMTSTOP appears
@@ -180,11 +231,11 @@ namespace pl0cc {
             return;
         }
 
-        const std::set<int> &marks = automaton->stateMarkup(state);
-        if (!automaton->isStopState(state) || marks.empty()) {
-            errors.emplace_back(lineCounter, columnCounter, readingToken.size());
+        auto [procedureMarks, stopMarks] = splitMarkup(automaton->stateMarkup(state));
+        if (!automaton->isStopState(state) || stopMarks.empty()) {
+            errors.emplace_back(this, lineCounter, columnCounter, readingToken.size(), procedureMarks);
         } else {
-            TokenType type = TokenType(*marks.begin()); // Take the smallest mark (see token type class id as priority)
+            TokenType type = TokenType(*stopMarks.begin()); // Take the smallest mark (see token type class id as priority)
 
             if (type == Token::NEWLINE) {
                 lineCounter++;
@@ -228,16 +279,6 @@ namespace pl0cc {
     }
 
     std::string Token::serialize() const {
-        constexpr static const char* typeMap[] {
-            "COMMENT", "IF", "ELSE", "FOR", "WHILE",
-            "BREAK", "RETURN", "CONTINUE", "FLOAT", "INT",
-            "CHAR", "SYMBOL", "NUMBER", "OP_PLUS", "OP_SUB",
-            "OP_MUL", "OP_DIV", "OP_MOD", "OP_GT", "OP_GE",
-            "OP_LT", "OP_LE", "OP_NEQ", "OP_EQU", "OP_NOT",
-            "OP_AND", "OP_OR", "OP_COMMA", "OP_ASSIGN", "LMBRACKET",
-            "RMBRACKET", "LSBRACKET", "RSBRACKET", "LLBRACKET", "RLBRACKET",
-            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "CMTSTOP"
-        };
         std::stringstream ss;
         ss << "TokenType: " << int(_type) << " (" << typeMap[_type] << ")";
         size_t len = ss.str().size();
@@ -247,5 +288,51 @@ namespace pl0cc {
         }
         ss << "Content: " << _content;
         return ss.str();
+    }
+
+    std::string Token::serializeTokenType(Token::TokenType type) {
+        return typeMap[type];
+    }
+
+    void Lexer::ErrorReport::reportErrorTo(std::ostream &output) {
+        static const char* CONSOLE_RED = "\033[31m";
+        static const char* CONSOLE_RESET = "\033[0m";
+
+        const std::string& srcLine = lexer->sourceLine(lineNumber());
+        std::stringstream hintLine;
+        bool needReset = false;
+        for (int idx = 0; idx < srcLine.size(); idx++) {
+            if (idx == columnNumber()) {
+                hintLine << CONSOLE_RED;
+                needReset = true;
+            }
+            if (idx == columnNumber() + tokenLength()) {
+                hintLine << CONSOLE_RESET;
+                needReset = false;
+            }
+            hintLine << srcLine[idx];
+        }
+        if (needReset) hintLine << CONSOLE_RESET;
+
+        std::string reason;
+        if (tokenTypes().empty()) {
+            reason = "Read unknown character '"s
+                     + srcLine[columnNumber() + tokenLength() - 1]
+                     + "'";
+        } else {
+            std::stringstream ss;
+            ss << "Read invalid character '" << srcLine[columnNumber() + tokenLength() - 1] << "' ";
+
+            ss << "while reading possible token { ";
+            for (auto tokenType : tokenTypes()) {
+                ss << Token::serializeTokenType(Token::TokenType(tokenType)) << ' ';
+            }
+            ss << "}";
+            reason = ss.str();
+        }
+
+        output << "---------------------" << std::endl;
+        output << lineNumber()+1 << " |\t" << hintLine.str() << std::endl;
+        output << "Reason: " << reason << std::endl << std::endl;
     }
 }
