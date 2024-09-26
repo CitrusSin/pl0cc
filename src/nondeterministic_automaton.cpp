@@ -7,7 +7,7 @@ using namespace pl0cc;
 
 using EncodeUnit = NondeterministicAutomaton::EncodeUnit;
 
-NondeterministicAutomaton::NondeterministicAutomaton() : nodes{{.next={}, .epsNext={}, .marks={}}}, startSstate(0) {}
+NondeterministicAutomaton::NondeterministicAutomaton() : nodes(1), startSstate(0) {}
 
 NondeterministicAutomaton::State NondeterministicAutomaton::State::nextState(EncodeUnit next) const {
     return atm->nextState(*this, next);
@@ -36,7 +36,7 @@ std::set<int> NondeterministicAutomaton::State::stateMarkups() const {
 }
 
 NondeterministicAutomaton::SingleState NondeterministicAutomaton::addState() {
-    nodes.push_back({.next={}, .epsNext={}, .marks={}});
+    nodes.emplace_back();
     return nodes.size() - 1;
 }
 

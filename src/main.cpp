@@ -37,6 +37,8 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+    cerr << "pl0cc v0.1 LEXER ONLY\n";
+
     auto absoluteInputPath = filesystem::absolute(inputFilename);
 
     ifstream input(inputFilename);
