@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "lexer.hpp"
+#include "token_storage.hpp"
 
 using namespace std;
 using pl0cc::Lexer, pl0cc::RawToken, pl0cc::TokenStorage;

@@ -17,4 +17,5 @@ add_executable(
         regex.hpp
         regex_parse.hpp
         token_storage.cpp
+        token_storage.hpp
 )

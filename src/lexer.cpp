@@ -1,9 +1,9 @@
 #include "lexer.hpp"
+#include "token_storage.hpp"
 #include "nondeterministic_automaton.hpp"
 #include "regex.hpp"
 
 #include <string>
-#include <string_view>
 #include <sstream>
 #include <cstring>
 #include <utility>

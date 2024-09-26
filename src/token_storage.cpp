@@ -1,5 +1,5 @@
 #include <sstream>
-#include "lexer.hpp"
+#include "token_storage.hpp"
 
 namespace pl0cc {
     TokenStorage::TokenStorage() = default;
