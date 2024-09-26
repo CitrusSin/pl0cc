@@ -74,6 +74,7 @@ namespace pl0cc {
         NondeterministicAutomaton nfa;
         auto start = nfa.startSingleState();
         nfa.addJump(start, ' ', nfa.startSingleState());
+        nfa.addJump(start, '\t', nfa.startSingleState());
         nfa.addStateMarkup(start, 0);   // Mark 0 to start state for feedChar()
         constexpr const int regexLen = sizeof tokenRegexs / sizeof tokenRegexs[0];
         for (int type = 0; type < regexLen; type++) {

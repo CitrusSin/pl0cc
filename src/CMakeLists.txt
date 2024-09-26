@@ -3,8 +3,6 @@ project(pl0cc)
 
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(./include)
-
 add_executable(
         pl0cc
         main.cpp
@@ -13,9 +11,9 @@ add_executable(
         nondeterministic_automaton.cpp
         regex_parse.cpp
         lexer.cpp
-        include/deterministic_automaton.hpp
-        include/lexer.hpp
-        include/nondeterministic_automaton.hpp
-        include/regex.hpp
-        include/regex_parse.hpp
+        deterministic_automaton.hpp
+        lexer.hpp
+        nondeterministic_automaton.hpp
+        regex.hpp
+        regex_parse.hpp
 )
