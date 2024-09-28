@@ -28,7 +28,7 @@ namespace pl0cc {
 
         void addStateMarkup(State s, int mark);
         void removeStateMarkup(State s, int mark);
-        void removeAllStateMarkup(State s);
+        void removeStateMarkup(State s);
         [[nodiscard]] const std::set<int>& stateMarkup(State s) const;
 
         std::pair<State, std::set<State>> importAutomaton(const DeterministicAutomaton& atm);

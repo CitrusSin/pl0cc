@@ -63,7 +63,7 @@ namespace pl0cc {
 
         Lexer();
 
-        void setTokenStorage(TokenStorage* storage);
+        void setTokenStorage(TokenStorage* pStorage);
 
         // true if new token generated
         bool feedChar(char ch);
@@ -81,6 +81,10 @@ namespace pl0cc {
         [[nodiscard]] const std::string& sourceLine(int lineNumber) const;
 
     private:
+        enum class CommentState {
+            NONE, SINGLE_LINE, MULTI_LINE
+        };
+
         DeterministicAutomaton::State state;
         std::deque<RawToken> tokenQueue;
         TokenStorage *storage;
@@ -89,7 +93,10 @@ namespace pl0cc {
         std::string readingToken;
         std::vector<std::string> storedLines;
         std::vector<ErrorReport> errors;
-        std::string lastCommentToken;
+        //std::string lastCommentToken;
+        CommentState commentState;
+
+        void pushError(const std::set<int>& possibleTokenTypes = {});
 
         static void buildAutomaton();
     };

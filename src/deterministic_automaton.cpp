@@ -144,9 +144,8 @@ void DeterministicAutomaton::simplify() {
             continue;
         }
 
-        auto& sMap = stateMap[s];
-        for (auto& [ch, st] : sMap) {
-            sMap[ch] = stateMappings[equivalence.root(st)];
+        for (auto& [ch, st] : stateMap[s]) {
+            st = stateMappings[equivalence.root(st)];
         }
     }
 
@@ -186,7 +185,7 @@ std::string DeterministicAutomaton::serialize() const {
     return serializeStream.str();
 }
 
-void DeterministicAutomaton::removeAllStateMarkup(State s) {
+void DeterministicAutomaton::removeStateMarkup(State s) {
     stateMarks[s].clear();
 }
 
