@@ -7,6 +7,7 @@
 #include <sstream>
 #include <cstring>
 #include <utility>
+#include <mutex>
 
 using namespace std::literals;
 
@@ -65,10 +66,12 @@ namespace pl0cc {
     };
 
     static std::unique_ptr<const DeterministicAutomaton> automaton = nullptr;
+    static std::mutex buildLock;
 
     void Lexer::buildAutomaton() {
         using SingleState = NondeterministicAutomaton::SingleState;
 
+        std::lock_guard _lockGuard(buildLock);
         if (automaton != nullptr) return;
 
         NondeterministicAutomaton nfa;
