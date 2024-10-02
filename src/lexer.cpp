@@ -175,7 +175,7 @@ namespace pl0cc {
                         // Even if comment mode is on, newline still works to make sure line number is correct
                         || type == TokenType::NEWLINE
                         ) {
-                    tokenQueue.emplace_back(type, std::move(readingToken));
+                    pushToken(type, std::move(readingToken));
                     tokenGenerated = true;
                 }
 
@@ -211,12 +211,6 @@ namespace pl0cc {
         columnCounter++;
         storedLines.back().push_back(ch);
 
-        if (storage) {
-            while (!tokenEmpty()) {
-                this->storage->pushToken(takeToken());
-            }
-        }
-
         return tokenGenerated;
     }
 
@@ -244,7 +238,7 @@ namespace pl0cc {
 
     void Lexer::eof() {
         if (commentState != CommentState::NONE) {
-            tokenQueue.emplace_back(TokenType::TOKEN_EOF);
+            pushToken(TokenType::TOKEN_EOF);
             hasStopped = true;
             return;
         }
@@ -261,11 +255,11 @@ namespace pl0cc {
                 storedLines.emplace_back();
             }
 
-            tokenQueue.emplace_back(type, std::move(readingToken));
+            pushToken(type, std::move(readingToken));
             readingToken = std::string("");
             state = automaton->startState();
         }
-        tokenQueue.emplace_back(TokenType::TOKEN_EOF);
+        pushToken(TokenType::TOKEN_EOF);
         hasStopped = true;
     }
 
@@ -299,6 +293,16 @@ namespace pl0cc {
             errors.emplace_back(this, lineCounter, colStart, readingToken.size() + 1, possibleTokenTypes);
         }
         readingToken.clear();
+    }
+
+    template<typename... Args>
+    void Lexer::pushToken(Args &&... args) {
+        tokenQueue.emplace_back(std::forward<Args>(args)...);
+        if (storage) {
+            while (!tokenEmpty()) {
+                this->storage->pushToken(takeToken());
+            }
+        }
     }
 
     std::string RawToken::serialize() const {

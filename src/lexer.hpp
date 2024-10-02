@@ -98,6 +98,9 @@ namespace pl0cc {
 
         void pushError(const std::set<int>& possibleTokenTypes = {});
 
+        template <typename... Args>
+        void pushToken(Args&&... args);
+
         static void buildAutomaton();
     };
 
