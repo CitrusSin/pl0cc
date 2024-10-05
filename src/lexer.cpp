@@ -143,7 +143,10 @@ namespace pl0cc {
                     lineCounter++;
                     columnCounter = 0;
                     // Remove redundant newlines
-                    while (storedLines.back().back() == '\r' || storedLines.back().back() == '\n') {
+                    while (
+                            !storedLines.empty() && !storedLines.back().empty() &&
+                            (storedLines.back().back() == '\r' || storedLines.back().back() == '\n')
+                    ) {
                         storedLines.back().pop_back();
                     }
                     storedLines.emplace_back();
