@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
             cerr << "Error " << (i+1) << " at " << srcFile << ": " << std::endl;
             report.reportErrorTo(cerr);
         }
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
