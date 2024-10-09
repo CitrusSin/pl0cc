@@ -85,6 +85,7 @@ void DeterministicAutomaton::simplify() {
             return values[x] = root(values[x]);
         }
         void link(size_t a, size_t b) {values[root(a)] = root(b);}
+        bool rootEquals(size_t a, size_t b) {return root(a) == root(b);}
     private:
         std::vector<size_t> values;
     };
@@ -121,10 +122,24 @@ void DeterministicAutomaton::simplify() {
     bool hasChanges;
     do {
         hasChanges = false;
-        for (State s0 = 0; s0 < stateCount(); s0++) {
-            State s1 = equivalence.root(s0);
-            if (s0 != s1 && !skipTableEquals(stateMap[s0], stateMap[s1])) {
-                equivalence.reset(s0);
+        for (State s1 = 0; s1 < stateCount(); s1++) {
+            State s0 = equivalence.root(s1);
+            if (s1 != s0 && !skipTableEquals(stateMap[s1], stateMap[s0])) {
+                std::vector<State> sts;
+                sts.reserve(stateCount());
+
+                for (State s2 = s1 + 1; s2 < stateCount(); s2++) {
+                    if (!equivalence.rootEquals(s0, s2)) continue;
+                    if (skipTableEquals(stateMap[s1], stateMap[s2])) {
+                        sts.push_back(s2);
+                    }
+                }
+
+                equivalence.reset(s1);
+                for (State ss : sts) {
+                    equivalence.reset(ss);
+                    equivalence.link(ss, s1);
+                }
                 hasChanges = true;
             }
         }
