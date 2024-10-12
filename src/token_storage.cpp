@@ -25,6 +25,14 @@ namespace pl0cc {
                     seman = numberConstantMap[token.content()];
                 }
                 break;
+            case TokenType::STRING:
+                if (!stringConstantMap.count(token.content())) {
+                    seman = stringConstantMap[token.content()] = static_cast<int>(stringConstants.size());
+                    stringConstants.push_back(std::move(token.content()));
+                } else {
+                    seman = stringConstantMap[token.content()];
+                }
+                break;
             default:
                 seman = -1;
                 break;
@@ -77,6 +85,20 @@ namespace pl0cc {
             while (ssLine.tellp() < 7) ssLine << ' ';
 
             ssLine << numberConstants[i];
+
+            ss << ssLine.str()<< '\n';
+        }
+        ss << '\n';
+
+        ss << "Strings >-------------------\n";
+        ss << "Index  Value\n";
+        for (size_t i=0; i<stringConstants.size(); i++) {
+            std::stringstream ssLine;
+
+            ssLine << i;
+            while (ssLine.tellp() < 7) ssLine << ' ';
+
+            ssLine << stringConstants[i];
 
             ss << ssLine.str()<< '\n';
         }

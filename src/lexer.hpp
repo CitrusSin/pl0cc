@@ -21,7 +21,8 @@ namespace pl0cc {
         OP_LT     = 20, OP_LE     = 21, OP_NEQ    = 22, OP_EQU    = 23, OP_NOT    = 24,
         OP_AND    = 25, OP_OR     = 26, OP_COMMA  = 27, OP_ASSIGN = 28, LMBRACKET = 29,
         RMBRACKET = 30, LSBRACKET = 31, RSBRACKET = 32, LLBRACKET = 33, RLBRACKET = 34,
-        SEMICOLON = 35, DOT       = 36, NEWLINE   = 37, TOKEN_EOF = 38, CMTSTOP   = 39
+        SEMICOLON = 35, DOT       = 36, NEWLINE   = 37, TOKEN_EOF = 38, CMTSTOP   = 39,
+        STRING    = 40
     };
 
     std::string tokenTypeName(TokenType type);
@@ -86,6 +87,7 @@ namespace pl0cc {
         [[nodiscard]] ErrorReport errorReportAt(size_t index) const;
         [[nodiscard]] const std::string& sourceLine(int lineNumber) const;
 
+        static const DeterministicAutomaton& getDFA();
     private:
         enum class CommentState {
             NONE, SINGLE_LINE, MULTI_LINE

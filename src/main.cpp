@@ -16,12 +16,14 @@ const char* CONSOLE_RESET = "\033[0m";
 
 int main(int argc, char **argv) {
     std::string inputFilename, outputFilename;
+    bool showAutomaton = false;
     int rd = 1;
     while (rd < argc) {
         std::string_view s(argv[rd]);
         if (s == "-o" && rd + 1 < argc) {
-            rd++;
-            outputFilename = argv[rd];
+            outputFilename = argv[++rd];
+        } else if (s == "--automaton") {
+            showAutomaton = true;
         } else {
             inputFilename = argv[rd];
         }
@@ -39,6 +41,11 @@ int main(int argc, char **argv) {
     }
 
     cerr << "pl0cc v0.1 LEXER ONLY\n";
+
+    if (showAutomaton) {
+        cerr << "Automaton >--------------\n";
+        cerr << Lexer::getDFA().serialize() << '\n';
+    }
 
     auto absoluteInputPath = filesystem::absolute(inputFilename);
 

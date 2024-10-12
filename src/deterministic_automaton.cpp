@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <functional>
+#include <iomanip>
 
 using namespace pl0cc;
 using State = DeterministicAutomaton::State;
@@ -180,17 +181,34 @@ void DeterministicAutomaton::simplify() {
 }
 
 std::string DeterministicAutomaton::serialize() const {
+    auto characterize = [](unsigned char c) -> std::string {
+        if (c >= 0x20 && c <= 0x7E) {
+            return std::string("'") + char(c) + "'";
+        }
+        std::stringstream ss;
+        ss << "'\\x" << std::fixed << std::setfill('0') << std::hex << std::setw(2) << int(c) << "'";
+        return ss.str();
+    };
+
     std::stringstream serializeStream;
     for (State s = 0; s < stateCount(); s++) {
         serializeStream << "STATE" << s << ": {";
         bool mark = false;
         for (auto [ch, st] : stateMap[s]) {
             if (mark) serializeStream << ", ";
-            serializeStream << char(ch) << " -> " << st;
+            serializeStream << characterize(ch) << " -> " << st;
             mark = true;
         }
-        serializeStream << "}\n";
+        serializeStream << "}  MARKUPS";
+        for (int m : stateMarkup(s)) {
+            serializeStream << ' ' << m;
+        }
+        if (stateMarkup(s).empty()) {
+            serializeStream << " EMPTY";
+        }
+        serializeStream << '\n';
     }
+    serializeStream << "START_STATE = " << _startState << '\n';
     serializeStream << "STOP_STATES =";
     for (State s : _endStates) {
         serializeStream << ' ' << s;

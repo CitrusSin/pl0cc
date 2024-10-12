@@ -30,8 +30,8 @@ namespace pl0cc {
     private:
         std::vector<Token> tokens;
 
-        std::vector<std::string> symbols, numberConstants;
-        std::map<std::string, int> symbolMap, numberConstantMap;
+        std::vector<std::string> symbols, numberConstants, stringConstants;
+        std::map<std::string, int> symbolMap, numberConstantMap, stringConstantMap;
     };
 } // pl0cc
 

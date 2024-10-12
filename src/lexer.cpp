@@ -54,7 +54,8 @@ namespace pl0cc {
                         "\\.",
             /*NEWLINE*/ "\r|\n|\r\n", // Support different newline for different platforms
             /*EOF*/     "",
-            /*CMTSTOP*/ "\\*/"
+            /*CMTSTOP*/ "\\*/",
+            /*STRING*/  R"("([^"]|\\")*")"
     };
     constexpr static const char* typeMap[] {
             "COMMENT", "IF", "ELSE", "FOR", "WHILE",
@@ -64,7 +65,8 @@ namespace pl0cc {
             "OP_LT", "OP_LE", "OP_NEQ", "OP_EQU", "OP_NOT",
             "OP_AND", "OP_OR", "OP_COMMA", "OP_ASSIGN", "LMBRACKET",
             "RMBRACKET", "LSBRACKET", "RSBRACKET", "LLBRACKET", "RLBRACKET",
-            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "CMTSTOP"
+            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "CMTSTOP",
+            "STRING"
     };
 
     std::unique_ptr<const DeterministicAutomaton> Lexer::automaton = nullptr;
@@ -205,16 +207,15 @@ namespace pl0cc {
         if (trialState == DeterministicAutomaton::REJECT) {
             tokenGenerated = generateTokenAndReset();
             trialState = automaton->nextState(state, ch);
+            if (trialState == DeterministicAutomaton::REJECT) {
+                trialState = automaton->startState();
+                pushError(ErrorType::INVALID_CHAR);
+            }
         }
 
         columnCounter++;
         readingToken.push_back(ch);
         storedLines.back().push_back(ch);
-
-        if (trialState == DeterministicAutomaton::REJECT) {
-            trialState = automaton->startState();
-            if (commentState == CommentState::NONE) pushError(ErrorType::INVALID_CHAR);
-        }
 
         state = trialState;
 
@@ -282,6 +283,11 @@ namespace pl0cc {
         if (colStart < 0) colStart = 0;
         errors.emplace_back(this, type, lineCounter, colStart, readingToken.size() + 1, possibleTokenTypes);
         readingToken.clear();
+    }
+
+    const DeterministicAutomaton &Lexer::getDFA() {
+        if (automaton == nullptr) buildAutomaton();
+        return *automaton;
     }
 
     template<typename... Args>
