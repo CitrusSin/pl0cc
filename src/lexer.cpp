@@ -1,8 +1,10 @@
 #include "lexer.hpp"
+#include "deterministic_automaton.hpp"
 #include "token_storage.hpp"
 #include "nondeterministic_automaton.hpp"
 #include "regex.hpp"
 
+#include <iostream>
 #include <string>
 #include <sstream>
 #include <cstring>
@@ -125,94 +127,96 @@ namespace pl0cc {
         return std::make_pair(p0, p1);
     }
 
+    bool Lexer::generateTokenAndReset() {
+        using State = DeterministicAutomaton::State;
+        bool tokenGenerated = false;
+
+        auto [procedureMarks, stopMarks] = splitMarkup(automaton->stateMarkup(state));
+        // Make sure there's no error happening: last state should be a stop state and marked with type.
+        if (automaton->isStopState(state) && !stopMarks.empty()) {
+            TokenType type = TokenType(*stopMarks.begin()); // Take the smallest mark (see token type class id as priority)
+
+            // When NEWLINE token is present, maintain lineCounter, columnCounter and storedLines
+            if (type == TokenType::NEWLINE) {
+                lineCounter++;
+                columnCounter = 0;
+                // Remove redundant newlines
+                while (
+                        !storedLines.empty() && !storedLines.back().empty() &&
+                        (storedLines.back().back() == '\r' || storedLines.back().back() == '\n')
+                ) {
+                    storedLines.back().pop_back();
+                }
+                storedLines.emplace_back();
+            }
+
+            // Maintain comment mode
+            if (type == TokenType::COMMENT) {
+                // When COMMENT token is present, we should enter comment mode by setting commentState
+                if (readingToken == "//") {
+                    commentState = CommentState::SINGLE_LINE;
+                } else if (readingToken == "/*") {
+                    commentState = CommentState::MULTI_LINE;
+                }
+            } else if (type == TokenType::NEWLINE && commentState == CommentState::SINGLE_LINE) {
+                // If comment mode is in single line comment, exit comment mode
+                commentState = CommentState::NONE;
+            } else if (stopMarks.count((int)TokenType::CMTSTOP)) {
+                if (commentState == CommentState::MULTI_LINE) {
+                    commentState = CommentState::NONE;
+                } else if (commentState == CommentState::NONE) {
+                    pushError(ErrorType::ILLEGAL_COMMENT_STOP);
+                }
+            }
+
+            // Now add the token we've just read
+            if (
+            // Do not really add token when comment mode is on
+                    (
+                            commentState == CommentState::NONE
+                            && type != TokenType::CMTSTOP
+                            && type != TokenType::COMMENT
+                    )
+                    // Even if comment mode is on, newline still works to make sure line number is correct
+                    || type == TokenType::NEWLINE
+            ) {
+                pushToken(type, std::move(readingToken));
+                tokenGenerated = true;
+            }
+
+            // Clean token buffer, reset automaton state and re-read this character
+            readingToken = std::string("");
+            state = automaton->startState();
+        } else {
+            // Otherwise there is an error.
+            if (commentState == CommentState::NONE) pushError(ErrorType::READING_TOKEN, procedureMarks);
+            state = automaton->startState();
+        }
+        return tokenGenerated;
+    }
+
     bool Lexer::feedChar(char ch) {
         using State = DeterministicAutomaton::State;
 
         bool tokenGenerated = false;
-        auto [procedureMarks, stopMarks] = splitMarkup(automaton->stateMarkup(state));
         State trialState = automaton->nextState(state, ch);
 
         // When rejected, a new token shall be generated or there's an error happening
         if (trialState == DeterministicAutomaton::REJECT) {
-            // Make sure there's no error happening: last state should be a stop state and marked with type.
-            if (automaton->isStopState(state) && !stopMarks.empty()) {
-                TokenType type = TokenType(*stopMarks.begin()); // Take the smallest mark (see token type class id as priority)
-
-                // When NEWLINE token is present, maintain lineCounter, columnCounter and storedLines
-                if (type == TokenType::NEWLINE) {
-                    lineCounter++;
-                    columnCounter = 0;
-                    // Remove redundant newlines
-                    while (
-                            !storedLines.empty() && !storedLines.back().empty() &&
-                            (storedLines.back().back() == '\r' || storedLines.back().back() == '\n')
-                    ) {
-                        storedLines.back().pop_back();
-                    }
-                    storedLines.emplace_back();
-                }
-
-                // Maintain comment mode
-                if (type == TokenType::COMMENT) {
-                    // When COMMENT token is present, we should enter comment mode by setting commentState
-                    if (readingToken == "//") {
-                        commentState = CommentState::SINGLE_LINE;
-                    } else if (readingToken == "/*") {
-                        commentState = CommentState::MULTI_LINE;
-                    }
-                } else if (type == TokenType::NEWLINE && commentState == CommentState::SINGLE_LINE) {
-                    // If comment mode is in single line comment, exit comment mode
-                    commentState = CommentState::NONE;
-                } else if (stopMarks.count((int)TokenType::CMTSTOP) && commentState == CommentState::MULTI_LINE) {
-                    commentState = CommentState::NONE;
-                }
-
-                // Now add the token we've just read
-                if (
-                    // Do not really add token when comment mode is on
-                        (
-                                commentState == CommentState::NONE
-                                && type != TokenType::CMTSTOP
-                                && type != TokenType::COMMENT
-                        )
-                        // Even if comment mode is on, newline still works to make sure line number is correct
-                        || type == TokenType::NEWLINE
-                        ) {
-                    pushToken(type, std::move(readingToken));
-                    tokenGenerated = true;
-                }
-
-                // Clean token buffer, reset automaton state and re-read this character
-                readingToken = std::string("");
-                trialState = automaton->nextState(automaton->startState(), ch);
-                if (trialState == DeterministicAutomaton::REJECT) {
-                    // Report error
-                    pushError();
-                    trialState = automaton->startState();
-                }
-            } else {
-                // Otherwise there is an error.
-                pushError(procedureMarks);
-                trialState = automaton->nextState(automaton->startState(), ch);
-                if (trialState == DeterministicAutomaton::REJECT) {
-                    trialState = automaton->startState();
-                }
-            }
-        } else if (commentState == CommentState::MULTI_LINE && stopMarks.count((int)TokenType::CMTSTOP)) {
-            // Even the automaton has not stopped, comment mode should be stopped when CMTSTOP appears
-            // Stop comment mode
-            commentState = CommentState::NONE;
-            trialState = automaton->startState();
-            readingToken.clear();
+            tokenGenerated = generateTokenAndReset();
+            trialState = automaton->nextState(state, ch);
         }
 
-        // If trialState is the start state, we must have encountered an error
-        // So update the token buffer
-        if (trialState != automaton->startState()) readingToken.push_back(ch);
+        columnCounter++;
+        readingToken.push_back(ch);
+        storedLines.back().push_back(ch);
+
+        if (trialState == DeterministicAutomaton::REJECT) {
+            trialState = automaton->startState();
+            if (commentState == CommentState::NONE) pushError(ErrorType::INVALID_CHAR);
+        }
 
         state = trialState;
-        columnCounter++;
-        storedLines.back().push_back(ch);
 
         return tokenGenerated;
     }
@@ -240,28 +244,12 @@ namespace pl0cc {
     }
 
     void Lexer::eof() {
+        generateTokenAndReset();
+
         if (commentState != CommentState::NONE) {
-            pushToken(TokenType::TOKEN_EOF);
-            hasStopped = true;
-            return;
+            pushError(ErrorType::NONSTOP_COMMENT);
         }
 
-        auto [procedureMarks, stopMarks] = splitMarkup(automaton->stateMarkup(state));
-        if (!automaton->isStopState(state) || stopMarks.empty()) {
-            errors.emplace_back(this, lineCounter, columnCounter, readingToken.size(), procedureMarks);
-        } else {
-            TokenType type = TokenType(*stopMarks.begin()); // Take the smallest mark (see token type class id as priority)
-
-            if (type == TokenType::NEWLINE) {
-                lineCounter++;
-                columnCounter = 0;
-                storedLines.emplace_back();
-            }
-
-            pushToken(type, std::move(readingToken));
-            readingToken = std::string("");
-            state = automaton->startState();
-        }
         pushToken(TokenType::TOKEN_EOF);
         hasStopped = true;
     }
@@ -289,12 +277,10 @@ namespace pl0cc {
         }
     }
 
-    void Lexer::pushError(const std::set<int>& possibleTokenTypes) {
+    void Lexer::pushError(ErrorType type, const std::set<int>& possibleTokenTypes) {
         int colStart = columnCounter - (int)readingToken.size();
         if (colStart < 0) colStart = 0;
-        if (commentState == CommentState::NONE) {
-            errors.emplace_back(this, lineCounter, colStart, readingToken.size() + 1, possibleTokenTypes);
-        }
+        errors.emplace_back(this, type, lineCounter, colStart, readingToken.size() + 1, possibleTokenTypes);
         readingToken.clear();
     }
 
@@ -330,11 +316,11 @@ namespace pl0cc {
     }
 
     void Lexer::ErrorReport::reportErrorTo(std::ostream &output, bool colorful) {
-        const char* CONSOLE_RED = "\033[31m";
-        const char* CONSOLE_RESET = "\033[0m";
+        const char* MARK_START = "\033[31m";
+        const char* MARK_STOP = "\033[0m";
 
         if (!colorful) {
-            CONSOLE_RED = CONSOLE_RESET = "";
+            MARK_START = MARK_STOP = "~";
         }
 
         const std::string& srcLine = lexer->sourceLine(lineNumber());
@@ -342,23 +328,23 @@ namespace pl0cc {
         bool needReset = false;
         for (int idx = 0; idx < srcLine.size(); idx++) {
             if (idx == columnNumber()) {
-                hintLine << CONSOLE_RED;
+                hintLine << MARK_START;
                 needReset = true;
             }
             if (idx == columnNumber() + tokenLength()) {
-                hintLine << CONSOLE_RESET;
+                hintLine << MARK_STOP;
                 needReset = false;
             }
             hintLine << srcLine[idx];
         }
-        if (needReset) hintLine << CONSOLE_RESET;
+        if (needReset) hintLine << MARK_STOP;
 
         std::string reason;
-        if (tokenTypes().empty()) {
+        if (type == ErrorType::INVALID_CHAR) {
             reason = "Read unknown character '"s
                      + srcLine[columnNumber() + tokenLength() - 1]
                      + "'";
-        } else {
+        } else if (type == ErrorType::READING_TOKEN) {
             std::stringstream ss;
             ss << "Read invalid character '" << srcLine[columnNumber() + tokenLength() - 1] << "' ";
 
@@ -368,6 +354,10 @@ namespace pl0cc {
             }
             ss << "}";
             reason = ss.str();
+        } else if (type == ErrorType::ILLEGAL_COMMENT_STOP) {
+            reason = "Invalid multi-line comment stop symbol";
+        } else if (type == ErrorType::NONSTOP_COMMENT) {
+            reason = "Multi-line comment has not stopped";
         }
 
         output << "---------------------" << std::endl;

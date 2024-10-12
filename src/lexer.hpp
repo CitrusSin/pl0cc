@@ -46,10 +46,15 @@ namespace pl0cc {
 
     class Lexer {
     public:
+        enum class ErrorType {
+            INVALID_CHAR, READING_TOKEN, ILLEGAL_COMMENT_STOP, NONSTOP_COMMENT
+        };
+
         class ErrorReport {
         public:
-            ErrorReport(Lexer *lexer, int lineCounter, int colCounter, int tokenLength, std::set<int> readingTokenType) :
-                    lexer(lexer), lineNum(lineCounter), colNum(colCounter), tokenLen(tokenLength), readingTokenType(std::move(readingTokenType)) {}
+            ErrorReport(Lexer *lexer, ErrorType type, int lineCounter, int colCounter, int tokenLength, std::set<int> readingTokenType) :
+                    lexer(lexer), type(type), lineNum(lineCounter), colNum(colCounter), tokenLen(tokenLength), readingTokenType(std::move(readingTokenType)) {}
+            [[nodiscard]] constexpr ErrorType errorType() const {return type;}
             [[nodiscard]] constexpr int lineNumber() const {return lineNum;}
             [[nodiscard]] constexpr int columnNumber() const {return colNum;}
             [[nodiscard]] constexpr int tokenLength() const {return tokenLen;}
@@ -57,6 +62,7 @@ namespace pl0cc {
             void reportErrorTo(std::ostream &output, bool colorful = true);
         private:
             Lexer *lexer;
+            ErrorType type;
             int lineNum, colNum, tokenLen;
             std::set<int> readingTokenType;
         };
@@ -98,7 +104,8 @@ namespace pl0cc {
 
         static std::unique_ptr<const DeterministicAutomaton> automaton;
 
-        void pushError(const std::set<int>& possibleTokenTypes = {});
+        bool generateTokenAndReset();
+        void pushError(ErrorType type, const std::set<int>& possibleTokenTypes = {});
 
         template <typename... Args>
         void pushToken(Args&&... args);
