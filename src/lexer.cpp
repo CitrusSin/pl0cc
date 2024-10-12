@@ -65,7 +65,7 @@ namespace pl0cc {
             "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "CMTSTOP"
     };
 
-    static std::unique_ptr<const DeterministicAutomaton> automaton = nullptr;
+    std::unique_ptr<const DeterministicAutomaton> Lexer::automaton = nullptr;
     static std::mutex buildLock;
 
     void Lexer::buildAutomaton() {

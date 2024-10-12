@@ -96,6 +96,8 @@ namespace pl0cc {
         //std::string lastCommentToken;
         CommentState commentState;
 
+        static std::unique_ptr<const DeterministicAutomaton> automaton;
+
         void pushError(const std::set<int>& possibleTokenTypes = {});
 
         template <typename... Args>
