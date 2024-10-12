@@ -214,7 +214,9 @@ namespace pl0cc {
         }
 
         columnCounter++;
-        readingToken.push_back(ch);
+        // If we read non-grammar unit, the state will stay at the start state
+        // And just don't read into token
+        if (trialState != automaton->startState()) readingToken.push_back(ch);
         storedLines.back().push_back(ch);
 
         state = trialState;
