@@ -189,7 +189,7 @@ namespace pl0cc {
             // Clean token buffer, reset automaton state and re-read this character
             readingToken = std::string("");
             state = automaton->startState();
-        } else {
+        } else if (!procedureMarks.empty()) {
             // Otherwise there is an error.
             if (commentState == CommentState::NONE) pushError(ErrorType::READING_TOKEN, procedureMarks);
             state = automaton->startState();
