@@ -15,7 +15,7 @@ using namespace std::literals;
 
 namespace pl0cc {
     constexpr static const char* tokenRegexs[] {
-            /*COMMENT*/ "//|/\\*",
+            /*COMMENT*/ "//[^\r\n]*|/\\*([^*/]|\\*[^/]|[^*]/)*\\*/",
                         "if",
                         "else",
                         "for",
@@ -54,8 +54,7 @@ namespace pl0cc {
                         "\\.",
             /*NEWLINE*/ "\r|\n|\r\n", // Support different newline for different platforms
             /*EOF*/     "",
-            /*CMTSTOP*/ "\\*/",
-            /*STRING*/  R"("([^"]|\\")*")"
+            /*STRING*/  "\"\"|\"([^\"\r\n]|\\\\\")*[^\\\\]\""
     };
     constexpr static const char* typeMap[] {
             "COMMENT", "IF", "ELSE", "FOR", "WHILE",
@@ -65,8 +64,7 @@ namespace pl0cc {
             "OP_LT", "OP_LE", "OP_NEQ", "OP_EQU", "OP_NOT",
             "OP_AND", "OP_OR", "OP_COMMA", "OP_ASSIGN", "LMBRACKET",
             "RMBRACKET", "LSBRACKET", "RSBRACKET", "LLBRACKET", "RLBRACKET",
-            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "CMTSTOP",
-            "STRING"
+            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "STRING"
     };
 
     std::unique_ptr<const DeterministicAutomaton> Lexer::automaton = nullptr;
@@ -110,7 +108,7 @@ namespace pl0cc {
         lineCounter(0), columnCounter(0),
         hasStopped(false),
         storage(nullptr),
-        commentState(CommentState::NONE),
+        //commentState(CommentState::NONE),
         storedLines(1, ""), errors()
     {
         if (automaton == nullptr) buildAutomaton();
@@ -142,46 +140,11 @@ namespace pl0cc {
             if (type == TokenType::NEWLINE) {
                 lineCounter++;
                 columnCounter = 0;
-                // Remove redundant newlines
-                while (
-                        !storedLines.empty() && !storedLines.back().empty() &&
-                        (storedLines.back().back() == '\r' || storedLines.back().back() == '\n')
-                ) {
-                    storedLines.back().pop_back();
-                }
                 storedLines.emplace_back();
             }
 
-            // Maintain comment mode
-            if (type == TokenType::COMMENT) {
-                // When COMMENT token is present, we should enter comment mode by setting commentState
-                if (readingToken == "//") {
-                    commentState = CommentState::SINGLE_LINE;
-                } else if (readingToken == "/*") {
-                    commentState = CommentState::MULTI_LINE;
-                }
-            } else if (type == TokenType::NEWLINE && commentState == CommentState::SINGLE_LINE) {
-                // If comment mode is in single line comment, exit comment mode
-                commentState = CommentState::NONE;
-            } else if (stopMarks.count((int)TokenType::CMTSTOP)) {
-                if (commentState == CommentState::MULTI_LINE) {
-                    commentState = CommentState::NONE;
-                } else if (commentState == CommentState::NONE) {
-                    pushError(ErrorType::ILLEGAL_COMMENT_STOP);
-                }
-            }
-
             // Now add the token we've just read
-            if (
-            // Do not really add token when comment mode is on
-                    (
-                            commentState == CommentState::NONE
-                            && type != TokenType::CMTSTOP
-                            && type != TokenType::COMMENT
-                    )
-                    // Even if comment mode is on, newline still works to make sure line number is correct
-                    || type == TokenType::NEWLINE
-            ) {
+            if (type != TokenType::COMMENT) {
                 pushToken(type, std::move(readingToken));
                 tokenGenerated = true;
             }
@@ -191,7 +154,7 @@ namespace pl0cc {
             state = automaton->startState();
         } else if (!procedureMarks.empty()) {
             // Otherwise there is an error.
-            if (commentState == CommentState::NONE) pushError(ErrorType::READING_TOKEN, procedureMarks);
+            pushError(ErrorType::READING_TOKEN, procedureMarks);
             state = automaton->startState();
         }
         return tokenGenerated;
@@ -217,9 +180,29 @@ namespace pl0cc {
         // If we read non-grammar unit, the state will stay at the start state
         // And just don't read into token
         if (trialState != automaton->startState()) readingToken.push_back(ch);
-        storedLines.back().push_back(ch);
+        if (ch != '\r' && ch != '\n') storedLines.back().push_back(ch);
 
         state = trialState;
+
+        // Now process NEWLINE in COMMENTs
+        if (
+                automaton->stateMarkup(state).count(int(TokenType::COMMENT)*2) &&
+                readingToken.size() > 2
+        ) {
+            if (
+                    readingToken.back() == '\n' ||
+                    readingToken[readingToken.size() - 2] == '\r'
+            ) {
+                lineCounter++;
+                columnCounter = 0;
+                if (readingToken.back() != '\n') columnCounter++;
+
+                storedLines.emplace_back();
+
+                // Add NEWLINE Token
+                pushToken(TokenType::NEWLINE);
+            }
+        }
 
         return tokenGenerated;
     }
@@ -247,11 +230,19 @@ namespace pl0cc {
     }
 
     void Lexer::eof() {
-        generateTokenAndReset();
+        auto [procedureMarks, endMarks] = splitMarkup(automaton->stateMarkup(state));
 
+        if (endMarks.empty()) {
+            pushError(ErrorType::NONSTOP_TOKEN);
+        } else {
+            generateTokenAndReset();
+        }
+
+        /*
         if (commentState != CommentState::NONE) {
             pushError(ErrorType::NONSTOP_COMMENT);
         }
+        */
 
         pushToken(TokenType::TOKEN_EOF);
         hasStopped = true;
@@ -362,10 +353,8 @@ namespace pl0cc {
             }
             ss << "}";
             reason = ss.str();
-        } else if (type == ErrorType::ILLEGAL_COMMENT_STOP) {
-            reason = "Invalid multi-line comment stop symbol";
-        } else if (type == ErrorType::NONSTOP_COMMENT) {
-            reason = "Multi-line comment has not stopped";
+        } else if (type == ErrorType::NONSTOP_TOKEN) {
+            reason = "Ending token has not stopped";
         }
 
         output << "---------------------" << std::endl;

@@ -21,8 +21,7 @@ namespace pl0cc {
         OP_LT     = 20, OP_LE     = 21, OP_NEQ    = 22, OP_EQU    = 23, OP_NOT    = 24,
         OP_AND    = 25, OP_OR     = 26, OP_COMMA  = 27, OP_ASSIGN = 28, LMBRACKET = 29,
         RMBRACKET = 30, LSBRACKET = 31, RSBRACKET = 32, LLBRACKET = 33, RLBRACKET = 34,
-        SEMICOLON = 35, DOT       = 36, NEWLINE   = 37, TOKEN_EOF = 38, CMTSTOP   = 39,
-        STRING    = 40
+        SEMICOLON = 35, DOT       = 36, NEWLINE   = 37, TOKEN_EOF = 38, STRING    = 39
     };
 
     std::string tokenTypeName(TokenType type);
@@ -48,7 +47,7 @@ namespace pl0cc {
     class Lexer {
     public:
         enum class ErrorType {
-            INVALID_CHAR, READING_TOKEN, ILLEGAL_COMMENT_STOP, NONSTOP_COMMENT
+            INVALID_CHAR, READING_TOKEN, NONSTOP_TOKEN
         };
 
         class ErrorReport {
@@ -89,9 +88,11 @@ namespace pl0cc {
 
         static const DeterministicAutomaton& getDFA();
     private:
+        /*
         enum class CommentState {
             NONE, SINGLE_LINE, MULTI_LINE
         };
+        */
 
         DeterministicAutomaton::State state;
         std::deque<RawToken> tokenQueue;
@@ -102,7 +103,7 @@ namespace pl0cc {
         std::vector<std::string> storedLines;
         std::vector<ErrorReport> errors;
         //std::string lastCommentToken;
-        CommentState commentState;
+        //CommentState commentState;
 
         static std::unique_ptr<const DeterministicAutomaton> automaton;
 
