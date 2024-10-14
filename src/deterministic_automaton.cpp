@@ -167,8 +167,8 @@ void DeterministicAutomaton::simplify() {
 
     int bias = 0;
     for (State s : removeStates) {
-        stateMap.erase(stateMap.begin() + s - bias);
-        stateMarks.erase(stateMarks.begin() + s - bias);
+        stateMap.erase(stateMap.begin() + (int(s) - bias));
+        stateMarks.erase(stateMarks.begin() + (int(s) - bias));
         bias++;
     }
 
