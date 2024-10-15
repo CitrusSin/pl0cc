@@ -6,7 +6,6 @@
 #define PL0CC_LEXER_HPP
 
 #include <iostream>
-#include <deque>
 #include <memory>
 #include <utility>
 
@@ -42,7 +41,34 @@ namespace pl0cc {
         std::string _content;
     };
 
-    class TokenStorage;
+        struct Token {
+        TokenType type;
+        int seman;
+
+        Token(TokenType type, int seman) : type(type), seman(seman) {}
+    };
+
+    class TokenStorage {
+    public:
+        TokenStorage();
+
+        void pushToken(RawToken token);
+
+        void serializeTo(std::ostream& ss) const;
+
+        [[nodiscard]] size_t size() const { return tokens.size(); }
+        Token operator[](size_t idx) const { return tokens[idx]; }
+
+        [[nodiscard]] auto begin() -> std::vector<Token>::iterator {return tokens.begin();}
+        [[nodiscard]] auto begin() const -> std::vector<Token>::const_iterator {return tokens.begin();}
+        [[nodiscard]] auto end() -> std::vector<Token>::iterator {return tokens.end();}
+        [[nodiscard]] auto end() const -> std::vector<Token>::const_iterator {return tokens.end();}
+    private:
+        std::vector<Token> tokens;
+
+        std::vector<std::string> symbols, numberConstants, stringConstants;
+        std::map<std::string, int> symbolMap, numberConstantMap, stringConstantMap;
+    };
 
     class Lexer {
     public:
@@ -69,7 +95,7 @@ namespace pl0cc {
 
         Lexer();
 
-        void setTokenStorage(TokenStorage* pStorage);
+        TokenStorage& tokenStorage();
 
         // true if new token generated
         bool feedChar(char ch);
@@ -78,7 +104,6 @@ namespace pl0cc {
 
         [[nodiscard]] bool tokenEmpty() const;
         [[nodiscard]] size_t tokenCount() const;
-        RawToken takeToken();
 
         [[nodiscard]] bool stopped() const;
 
@@ -95,8 +120,7 @@ namespace pl0cc {
         */
 
         DeterministicAutomaton::State state;
-        std::deque<RawToken> tokenQueue;
-        TokenStorage *storage;
+        TokenStorage storage;
         int lineCounter, columnCounter;
         bool hasStopped;
         std::string readingToken;
@@ -110,8 +134,10 @@ namespace pl0cc {
         bool generateTokenAndReset();
         void pushError(ErrorType type, const std::set<int>& possibleTokenTypes = {});
 
-        template <typename... Args>
-        void pushToken(Args&&... args);
+        template<typename... Args>
+        void pushToken(Args &&... args) {
+            storage.pushToken(RawToken(std::forward<Args>(args)...));
+        }
 
         static void buildAutomaton();
     };

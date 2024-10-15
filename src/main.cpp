@@ -5,10 +5,9 @@
 #include <string_view>
 
 #include "lexer.hpp"
-#include "token_storage.hpp"
 
 using namespace std;
-using pl0cc::Lexer, pl0cc::RawToken, pl0cc::TokenStorage;
+using pl0cc::Lexer, pl0cc::TokenStorage;
 
 const char* CONSOLE_RED = "\033[31m";
 const char* CONSOLE_GREEN = "\033[32m";
@@ -51,9 +50,8 @@ int main(int argc, char **argv) {
 
     ifstream input(inputFilename);
     Lexer lexer;
-    TokenStorage ts;
+    TokenStorage& ts = lexer.tokenStorage();
 
-    lexer.setTokenStorage(&ts);
     lexer.feedStream(input);
     input.close();
 

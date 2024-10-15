@@ -1,6 +1,5 @@
 #include "lexer.hpp"
 #include "deterministic_automaton.hpp"
-#include "token_storage.hpp"
 #include "nondeterministic_automaton.hpp"
 #include "regex.hpp"
 
@@ -104,10 +103,9 @@ namespace pl0cc {
     }
 
     Lexer::Lexer() :
-        tokenQueue(),
+        storage(),
         lineCounter(0), columnCounter(0),
         hasStopped(false),
-        storage(nullptr),
         //commentState(CommentState::NONE),
         storedLines(1, ""), errors()
     {
@@ -216,17 +214,11 @@ namespace pl0cc {
     }
 
     bool Lexer::tokenEmpty() const {
-        return tokenQueue.empty();
+        return storage.size() == 0;
     }
 
     size_t Lexer::tokenCount() const {
-        return tokenQueue.size();
-    }
-
-    RawToken Lexer::takeToken() {
-        RawToken val = std::move(tokenQueue.front());
-        tokenQueue.pop_front();
-        return val;
+        return storage.size();
     }
 
     void Lexer::eof() {
@@ -264,11 +256,8 @@ namespace pl0cc {
         return storedLines[lineNumber];
     }
 
-    void Lexer::setTokenStorage(TokenStorage *pStorage) {
-        this->storage = pStorage;
-        while (!tokenEmpty()) {
-            this->storage->pushToken(takeToken());
-        }
+    TokenStorage& Lexer::tokenStorage() {
+        return storage;
     }
 
     void Lexer::pushError(ErrorType type, const std::set<int>& possibleTokenTypes) {
@@ -281,16 +270,6 @@ namespace pl0cc {
     const DeterministicAutomaton &Lexer::getDFA() {
         if (automaton == nullptr) buildAutomaton();
         return *automaton;
-    }
-
-    template<typename... Args>
-    void Lexer::pushToken(Args &&... args) {
-        tokenQueue.emplace_back(std::forward<Args>(args)...);
-        if (storage) {
-            while (!tokenEmpty()) {
-                this->storage->pushToken(takeToken());
-            }
-        }
     }
 
     std::string RawToken::serialize() const {
