@@ -1,16 +1,22 @@
-#ifndef PL0CC_GRAMMAR_HPP
-#define PL0CC_GRAMMAR_HPP
+#ifndef PL0CC_SYNTAX_HPP
+#define PL0CC_SYNTAX_HPP
 
 #include <algorithm>
 #include <functional>
 #include <initializer_list>
 #include <limits>
 #include <map>
+#include <memory>
+#include <optional>
+#include <ostream>
 #include <set>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 #include <unordered_set>
+
+#include "lexer.hpp"
 
 
 namespace pl0cc {
@@ -105,6 +111,8 @@ namespace pl0cc {
         std::set<Symbol> selectSet(Symbol leftPart, const Sentence& rightPart) const;
 
         std::map<Symbol, std::map<Symbol, Sentence>> llMap() const;
+
+        Symbol start() const;
     private:
         Symbol startSymbol;
         std::set<Symbol> symbolSet, ntSymbolSet;
@@ -125,6 +133,76 @@ namespace pl0cc {
         std::set<Symbol> firstSetFor(Symbol s, std::set<Symbol>& searchPath, std::map<Symbol, std::set<Symbol>>& storage) const;
         void calculateFollowSet() const;
     };
+
+    class SyntaxTree {
+    public:
+        explicit SyntaxTree(Token token);
+        explicit SyntaxTree(Symbol symbol);
+        
+        Symbol symbol() const;
+        void addChild(SyntaxTree st);
+        size_t childCount() const;
+        bool childExists(size_t index) const;
+        const SyntaxTree& childAt(size_t index) const;
+        SyntaxTree& childAt(size_t index);
+        std::shared_ptr<SyntaxTree> shareChild(size_t index);
+        void setChildSentence(const Sentence& sentence);
+        void setTokenData(Token token);
+
+        void serializeTo(std::ostream& os, std::function<std::string(Symbol)> symbolName, int tabCount = 0);
+    private:
+        Symbol symbolData;
+        std::optional<Token> tokenData;
+        std::vector<std::shared_ptr<SyntaxTree>> childs;
+    };
+
+    namespace symbols {
+#define SYMDEF(name, value) const Symbol name = (value)
+
+        SYMDEF(LITERAL,       256);
+        SYMDEF(SINGLE_EXPR,   257);
+        SYMDEF(L5_EXPR,       258);
+        SYMDEF(L4_EXPR_P,     259);
+        SYMDEF(L4_EXPR,       260);
+        SYMDEF(L3_EXPR_P,     261);
+        SYMDEF(L3_EXPR,       262);
+        SYMDEF(L2_EXPR_P,     263);
+        SYMDEF(L2_EXPR,       264);
+        SYMDEF(L1_EXPR_P,     265);
+        SYMDEF(L1_EXPR,       266);
+        SYMDEF(EXPR,          267);
+        SYMDEF(SYM_OR_FCAL,   268);
+        SYMDEF(ARGS_E,        269);
+        SYMDEF(COMMA_SEP_E,   270);
+        SYMDEF(COMMA_SEP,     271);
+        SYMDEF(COMMA_SEP_P,   272);
+        SYMDEF(VARDEF,        273);
+        SYMDEF(STMT,          274);
+        SYMDEF(STMTS,         275);
+        SYMDEF(IFSTMT,        276);
+        SYMDEF(ELSECLAUSE,    277);
+        SYMDEF(WHILESTMT,     278);
+        SYMDEF(FNDEF,         279);
+        SYMDEF(VIRTVARDEFS,   280);
+        SYMDEF(VIRTVARDEFS_P, 281);
+        SYMDEF(PROGRAM_PART,  282);
+        SYMDEF(PROGRAM,       283);
+        SYMDEF(UNARY_OP,      284);
+        SYMDEF(BI_OP4,        285);
+        SYMDEF(BI_OP3,        286);
+        SYMDEF(BI_OP2,        287);
+        SYMDEF(BI_OP1,        288);
+        SYMDEF(TYPE,          289);
+
+#undef SYMDEF
+
+        const std::map<Symbol, std::string>& symbolToNameMap();
+        std::string symbolToName(Symbol s);
+    }
+
+    Syntax genSyntax();
+
+    SyntaxTree llZeroParseSyntax(const Syntax& syntax, const TokenStorage& ts);
 }
 
 #endif

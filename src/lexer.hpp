@@ -12,15 +12,17 @@
 #include "deterministic_automaton.hpp"
 
 namespace pl0cc {
-    enum class TokenType {
-        COMMENT   = 0,  IF        = 1,  ELSE      = 2,  FOR       = 3,  WHILE     = 4,
-        BREAK     = 5,  RETURN    = 6,  CONTINUE  = 7,  FLOAT     = 8,  INT       = 9,
-        CHAR      = 10, SYMBOL    = 11, NUMBER    = 12, OP_PLUS   = 13, OP_SUB    = 14,
-        OP_MUL    = 15, OP_DIV    = 16, OP_MOD    = 17, OP_GT     = 18, OP_GE     = 19,
-        OP_LT     = 20, OP_LE     = 21, OP_NEQ    = 22, OP_EQU    = 23, OP_NOT    = 24,
-        OP_AND    = 25, OP_OR     = 26, OP_COMMA  = 27, OP_ASSIGN = 28, LMBRACKET = 29,
-        RMBRACKET = 30, LSBRACKET = 31, RSBRACKET = 32, LLBRACKET = 33, RLBRACKET = 34,
-        SEMICOLON = 35, DOT       = 36, NEWLINE   = 37, TOKEN_EOF = 38, STRING    = 39
+    enum class TokenType: unsigned int {
+        COMMENT   = 0,  FN        = 1,  IF        = 2,  ELSE      = 3,  FOR       = 4,
+        WHILE     = 5,
+        BREAK     = 6,  RETURN    = 7,  CONTINUE  = 8,  FLOAT     = 9,  INT       = 10,
+        CHAR      = 11, SYMBOL    = 12, NUMBER    = 13, OP_PLUS   = 14, OP_SUB    = 15,
+        OP_MUL    = 16, OP_DIV    = 17, OP_MOD    = 18, OP_GT     = 19, OP_GE     = 20,
+        OP_LT     = 21, OP_LE     = 22, OP_NEQ    = 23, OP_EQU    = 24, OP_NOT    = 25,
+        OP_AND    = 26, OP_OR     = 27, COMMA     = 28, ASSIGN    = 29, LMBRACKET = 30,
+        RMBRACKET = 31, LSBRACKET = 32, RSBRACKET = 33, LLBRACKET = 34, RLBRACKET = 35,
+        SEMICOLON = 36, DOT       = 37, NEWLINE   = 38, TOKEN_EOF = 39, STRING    = 40,
+        ARROW     = 41
     };
 
     std::string tokenTypeName(TokenType type);
@@ -41,7 +43,7 @@ namespace pl0cc {
         std::string _content;
     };
 
-        struct Token {
+    struct Token {
         TokenType type;
         int seman;
 

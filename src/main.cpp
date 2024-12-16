@@ -1,10 +1,13 @@
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 
 #include "lexer.hpp"
+#include "syntax.hpp"
 
 using namespace std;
 using pl0cc::Lexer, pl0cc::TokenStorage;
@@ -30,20 +33,20 @@ int main(int argc, char **argv) {
     }
 
     if (inputFilename.empty()) {
-        cerr << "pl0cc: " << CONSOLE_RED << "Error" << CONSOLE_RESET << ": Input file not specified." << endl;
+        clog << "pl0cc: " << CONSOLE_RED << "Error" << CONSOLE_RESET << ": Input file not specified." << endl;
         return EXIT_FAILURE;
     }
 
     if (outputFilename.empty()) {
-        cerr << "pl0cc: " << CONSOLE_RED << "Error" << CONSOLE_RESET << ": Output file not specified." << endl;
+        clog << "pl0cc: " << CONSOLE_RED << "Error" << CONSOLE_RESET << ": Output file not specified." << endl;
         return EXIT_FAILURE;
     }
 
-    cerr << "pl0cc v0.1 LEXER ONLY\n";
+    clog << "pl0cc v0.1\n";
 
     if (showAutomaton) {
-        cerr << "Automaton >--------------\n";
-        cerr << Lexer::getDFA().serialize() << '\n';
+        clog << "Automaton >--------------\n";
+        clog << Lexer::getDFA().serialize() << '\n';
     }
 
     auto absoluteInputPath = filesystem::absolute(inputFilename);
@@ -56,27 +59,40 @@ int main(int argc, char **argv) {
     input.close();
 
     if (!lexer.stopped()) {
-        cerr << "pl0cc: " << CONSOLE_RED << "Error" << CONSOLE_RESET << ": Lexer hasn't stopped." << endl;
+        clog << "pl0cc: " << CONSOLE_RED << "Error" << CONSOLE_RESET << ": Lexer hasn't stopped." << endl;
         return EXIT_FAILURE;
     }
 
-    cerr << "pl0cc completed with ";
+    clog << "pl0cc completed with ";
     if (lexer.errorCount() == 0) {
-        cerr << CONSOLE_GREEN << "0" << CONSOLE_RESET << " errors occurred." << endl;
+        pl0cc::Syntax st = pl0cc::genSyntax();
+        std::optional<pl0cc::SyntaxTree> optTree;
+        try {
+            optTree = pl0cc::llZeroParseSyntax(st, ts);
+        } catch (std::tuple<int, int, int> err) {
+            clog << "Syntax parser reported an " << CONSOLE_RED << "error" << CONSOLE_RESET << " at line " << (std::get<1>(err)+1) << " token " << (std::get<2>(err)+1) << "." << endl;
+            clog << "---------------------" << std::endl;
+            clog << std::get<1>(err)+1 << " |\t" << lexer.sourceLine(std::get<1>(err)) << std::endl;
+            return EXIT_FAILURE;
+        }
+
+        clog << CONSOLE_GREEN << "0" << CONSOLE_RESET << " errors occurred." << endl;
 
         ofstream output(outputFilename);
         ts.serializeTo(output);
+        optTree.value().serializeTo(output, pl0cc::symbols::symbolToName);
+
         output << flush;
         output.close();
     } else {
-        cerr << CONSOLE_RED << lexer.errorCount() << CONSOLE_RESET << " errors occurred." << endl;
-        cerr << endl;
+        clog << CONSOLE_RED << lexer.errorCount() << CONSOLE_RESET << " lexer errors occurred." << endl;
+        clog << endl;
         for (size_t i=0; i<lexer.errorCount(); i++) {
             Lexer::ErrorReport report = lexer.errorReportAt(i);
 
             string srcFile = absoluteInputPath.string() + ":" + to_string(report.lineNumber() + 1) + ":" + to_string(report.columnNumber() + 1);
-            cerr << "Error " << (i+1) << " at " << srcFile << ": " << std::endl;
-            report.reportErrorTo(cerr);
+            clog << "Error " << (i+1) << " at " << srcFile << ": " << std::endl;
+            report.reportErrorTo(clog);
         }
         return EXIT_FAILURE;
     }

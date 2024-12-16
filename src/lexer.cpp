@@ -15,6 +15,7 @@ using namespace std::literals;
 namespace pl0cc {
     constexpr static const char* tokenRegexs[] {
             /*COMMENT*/ "//[^\r\n]*|/\\*([^*/]|\\*[^/]|[^*]/)*\\*/",
+                        "fn",
                         "if",
                         "else",
                         "for",
@@ -53,17 +54,19 @@ namespace pl0cc {
                         "\\.",
             /*NEWLINE*/ "\r|\n|\r\n", // Support different newline for different platforms
             /*EOF*/     "",
-            /*STRING*/  "\"\"|\"([^\"\r\n]|\\\\\")*[^\\\\]\""
+            /*STRING*/  "\"\"|\"([^\"\r\n]|\\\\\")*[^\\\\]\"",
+                        "->"
     };
     constexpr static const char* typeMap[] {
-            "COMMENT", "IF", "ELSE", "FOR", "WHILE",
+            "COMMENT", "FN", "IF", "ELSE", "FOR", "WHILE",
             "BREAK", "RETURN", "CONTINUE", "FLOAT", "INT",
             "CHAR", "SYMBOL", "NUMBER", "OP_PLUS", "OP_SUB",
             "OP_MUL", "OP_DIV", "OP_MOD", "OP_GT", "OP_GE",
             "OP_LT", "OP_LE", "OP_NEQ", "OP_EQU", "OP_NOT",
             "OP_AND", "OP_OR", "OP_COMMA", "OP_ASSIGN", "LMBRACKET",
             "RMBRACKET", "LSBRACKET", "RSBRACKET", "LLBRACKET", "RLBRACKET",
-            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "STRING"
+            "SEMICOLON", "DOT", "NEWLINE", "TOKEN_EOF", "STRING",
+            "ARROW"
     };
 
     std::unique_ptr<const DeterministicAutomaton> Lexer::automaton = nullptr;
