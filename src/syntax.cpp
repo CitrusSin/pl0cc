@@ -329,19 +329,21 @@ Syntax pl0cc::genSyntax() {
     syn.addConduct(UNARY_OP, {Symbol(TokenType::OP_NOT)});
     syn.addConduct(UNARY_OP, {Symbol(TokenType::OP_SUB)});
     syn.addConduct(UNARY_OP, {Symbol(TokenType::OP_PLUS)});
-    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_MUL)});
-    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_DIV)});
-    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_MOD)});
-    syn.addConduct(BI_OP3, {Symbol(TokenType::OP_PLUS)});
-    syn.addConduct(BI_OP3, {Symbol(TokenType::OP_SUB)});
-    syn.addConduct(BI_OP2, {Symbol(TokenType::OP_GT)});
-    syn.addConduct(BI_OP2, {Symbol(TokenType::OP_GE)});
-    syn.addConduct(BI_OP2, {Symbol(TokenType::OP_LT)});
-    syn.addConduct(BI_OP2, {Symbol(TokenType::OP_LE)});
-    syn.addConduct(BI_OP2, {Symbol(TokenType::OP_NEQ)});
-    syn.addConduct(BI_OP2, {Symbol(TokenType::OP_EQU)});
-    syn.addConduct(BI_OP1, {Symbol(TokenType::OP_AND)});
-    syn.addConduct(BI_OP1, {Symbol(TokenType::OP_OR)});
+    syn.addConduct(BI_OP6, {Symbol(TokenType::OP_MUL)});
+    syn.addConduct(BI_OP6, {Symbol(TokenType::OP_DIV)});
+    syn.addConduct(BI_OP6, {Symbol(TokenType::OP_MOD)});
+    syn.addConduct(BI_OP5, {Symbol(TokenType::OP_PLUS)});
+    syn.addConduct(BI_OP5, {Symbol(TokenType::OP_SUB)});
+    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_GT)});
+    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_GE)});
+    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_LT)});
+    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_LE)});
+    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_NEQ)});
+    syn.addConduct(BI_OP4, {Symbol(TokenType::OP_EQU)});
+    syn.addConduct(BI_OP3, {Symbol(TokenType::OP_AND)});
+    syn.addConduct(BI_OP3, {Symbol(TokenType::OP_OR)});
+    syn.addConduct(BI_OP2, {Symbol(TokenType::ASSIGN)});
+    syn.addConduct(BI_OP1, {Symbol(TokenType::COMMA)});
     syn.addConduct(TYPE, {Symbol(TokenType::INT)});
     syn.addConduct(TYPE, {Symbol(TokenType::FLOAT)});
     syn.addConduct(TYPE, {Symbol(TokenType::CHAR)});
@@ -350,8 +352,16 @@ Syntax pl0cc::genSyntax() {
     syn.addConduct(SINGLE_EXPR, {SYM_OR_FCAL});
     syn.addConduct(SINGLE_EXPR, {Symbol(TokenType::LSBRACKET), EXPR, Symbol(TokenType::RSBRACKET)});
 
-    syn.addConduct(L5_EXPR, {SINGLE_EXPR});
-    syn.addConduct(L5_EXPR, {UNARY_OP, SINGLE_EXPR});
+    syn.addConduct(L7_EXPR, {SINGLE_EXPR});
+    syn.addConduct(L7_EXPR, {UNARY_OP, SINGLE_EXPR});
+
+    syn.addConduct(L6_EXPR_P, {});
+    syn.addConduct(L6_EXPR_P, {BI_OP6, L6_EXPR});
+    syn.addConduct(L6_EXPR, {L7_EXPR, L6_EXPR_P});
+
+    syn.addConduct(L5_EXPR_P, {});
+    syn.addConduct(L5_EXPR_P, {BI_OP5, L5_EXPR});
+    syn.addConduct(L5_EXPR, {L6_EXPR, L5_EXPR_P});
 
     syn.addConduct(L4_EXPR_P, {});
     syn.addConduct(L4_EXPR_P, {BI_OP4, L4_EXPR});
@@ -374,19 +384,12 @@ Syntax pl0cc::genSyntax() {
     syn.addConduct(SYM_OR_FCAL, {Symbol(TokenType::SYMBOL), ARGS_E});
 
     syn.addConduct(ARGS_E, {});
-    syn.addConduct(ARGS_E, {Symbol(TokenType::LSBRACKET), COMMA_SEP_E, Symbol(TokenType::RSBRACKET)});
-
-    syn.addConduct(COMMA_SEP_E, {});
-    syn.addConduct(COMMA_SEP_E, {COMMA_SEP});
-
-    syn.addConduct(COMMA_SEP, {EXPR, COMMA_SEP_P});
-
-    syn.addConduct(COMMA_SEP_P, {Symbol(TokenType::COMMA), COMMA_SEP});
+    syn.addConduct(ARGS_E, {Symbol(TokenType::LSBRACKET), EXPR, Symbol(TokenType::RSBRACKET)});
 
     syn.addConduct(VARDEF, {TYPE, Symbol(TokenType::SYMBOL)});
 
     syn.addConduct(STMT, {VARDEF, Symbol(TokenType::SEMICOLON)});
-    syn.addConduct(STMT, {Symbol(TokenType::SYMBOL), Symbol(TokenType::ASSIGN), EXPR, Symbol(TokenType::SEMICOLON)});
+    syn.addConduct(STMT, {EXPR, Symbol(TokenType::SEMICOLON)});
     syn.addConduct(STMT, {Symbol(TokenType::LLBRACKET), STMTS, Symbol(TokenType::RLBRACKET)});
     syn.addConduct(STMT, {IFSTMT});
     syn.addConduct(STMT, {WHILESTMT});
@@ -403,7 +406,9 @@ Syntax pl0cc::genSyntax() {
 
     syn.addConduct(WHILESTMT, {Symbol(TokenType::WHILE), Symbol(TokenType::LSBRACKET), EXPR, Symbol(TokenType::RSBRACKET), STMT});
 
-    syn.addConduct(FNDEF, {Symbol(TokenType::FN), Symbol(TokenType::SYMBOL), Symbol(TokenType::LSBRACKET), VIRTVARDEFS, Symbol(TokenType::RSBRACKET), Symbol(TokenType::ARROW), TYPE, STMT});
+    syn.addConduct(FNDEF, {Symbol(TokenType::FN), Symbol(TokenType::SYMBOL), Symbol(TokenType::LSBRACKET), VIRTVARDEFS_E, Symbol(TokenType::RSBRACKET), Symbol(TokenType::ARROW), TYPE, STMT});
+    syn.addConduct(VIRTVARDEFS_E, {});
+    syn.addConduct(VIRTVARDEFS_E, {VIRTVARDEFS});
     syn.addConduct(VIRTVARDEFS, {VARDEF, VIRTVARDEFS_P});
     syn.addConduct(VIRTVARDEFS_P, {});
     syn.addConduct(VIRTVARDEFS_P, {Symbol(TokenType::COMMA), VIRTVARDEFS});
@@ -425,38 +430,42 @@ const std::map<Symbol, std::string>& pl0cc::symbols::symbolToNameMap() {
 
         SYMDEF(LITERAL,       256);
         SYMDEF(SINGLE_EXPR,   257);
-        SYMDEF(L5_EXPR,       258);
-        SYMDEF(L4_EXPR_P,     259);
-        SYMDEF(L4_EXPR,       260);
-        SYMDEF(L3_EXPR_P,     261);
-        SYMDEF(L3_EXPR,       262);
-        SYMDEF(L2_EXPR_P,     263);
-        SYMDEF(L2_EXPR,       264);
-        SYMDEF(L1_EXPR_P,     265);
-        SYMDEF(L1_EXPR,       266);
-        SYMDEF(EXPR,          267);
-        SYMDEF(SYM_OR_FCAL,   268);
-        SYMDEF(ARGS_E,        269);
-        SYMDEF(COMMA_SEP_E,   270);
-        SYMDEF(COMMA_SEP,     271);
-        SYMDEF(COMMA_SEP_P,   272);
-        SYMDEF(VARDEF,        273);
-        SYMDEF(STMT,          274);
-        SYMDEF(STMTS,         275);
-        SYMDEF(IFSTMT,        276);
-        SYMDEF(ELSECLAUSE,    277);
-        SYMDEF(WHILESTMT,     278);
-        SYMDEF(FNDEF,         279);
-        SYMDEF(VIRTVARDEFS,   280);
-        SYMDEF(VIRTVARDEFS_P, 281);
-        SYMDEF(PROGRAM_PART,  282);
-        SYMDEF(PROGRAM,       283);
-        SYMDEF(UNARY_OP,      284);
-        SYMDEF(BI_OP4,        285);
-        SYMDEF(BI_OP3,        286);
-        SYMDEF(BI_OP2,        287);
-        SYMDEF(BI_OP1,        288);
-        SYMDEF(TYPE,          289);
+        SYMDEF(L7_EXPR,       258);
+        SYMDEF(L6_EXPR_P,     259);
+        SYMDEF(L6_EXPR,       260);
+        SYMDEF(L5_EXPR_P,     261);
+        SYMDEF(L5_EXPR,       262);
+        SYMDEF(L4_EXPR_P,     263);
+        SYMDEF(L4_EXPR,       264);
+        SYMDEF(L3_EXPR_P,     265);
+        SYMDEF(L3_EXPR,       266);
+        SYMDEF(L2_EXPR_P,     267);
+        SYMDEF(L2_EXPR,       268);
+        SYMDEF(L1_EXPR_P,     269);
+        SYMDEF(L1_EXPR,       270);
+        SYMDEF(EXPR,          271);
+        SYMDEF(SYM_OR_FCAL,   272);
+        SYMDEF(ARGS_E,        273);
+        SYMDEF(VARDEF,        277);
+        SYMDEF(STMT,          278);
+        SYMDEF(STMTS,         279);
+        SYMDEF(IFSTMT,        280);
+        SYMDEF(ELSECLAUSE,    281);
+        SYMDEF(WHILESTMT,     282);
+        SYMDEF(FNDEF,         283);
+        SYMDEF(VIRTVARDEFS_E, 284);
+        SYMDEF(VIRTVARDEFS,   285);
+        SYMDEF(VIRTVARDEFS_P, 286);
+        SYMDEF(PROGRAM_PART,  287);
+        SYMDEF(PROGRAM,       288);
+        SYMDEF(UNARY_OP,      289);
+        SYMDEF(BI_OP6,        290);
+        SYMDEF(BI_OP5,        291);
+        SYMDEF(BI_OP4,        292);
+        SYMDEF(BI_OP3,        293);
+        SYMDEF(BI_OP2,        294);
+        SYMDEF(BI_OP1,        295);
+        SYMDEF(TYPE,          296);
 
 #undef SYMDEF
 
@@ -503,7 +512,14 @@ SyntaxTree pl0cc::llZeroParseSyntax(const Syntax &syntax, const TokenStorage &ts
             continue;
         }
 
-        auto sent = llMap[sp->symbol()][Symbol(tokenIter->type)];
+        Symbol tokenSymbol = Symbol(tokenIter->type);
+        if (tokenIter->type == TokenType::TOKEN_EOF) {
+            tokenSymbol = EPS;
+        }
+        if (!llMap[sp->symbol()].count(tokenSymbol)) {
+            throw std::tuple<int, int, int>(tokenIter - ts.begin(), lineCounter, tokenCounter);
+        }
+        auto sent = llMap[sp->symbol()].at(tokenSymbol);
         sp->setChildSentence(sent);
         for (size_t i = sp->childCount() - 1; i < sp->childCount(); i--) {
             symbolStack.push(sp->shareChild(i));

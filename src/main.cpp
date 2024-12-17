@@ -80,6 +80,8 @@ int main(int argc, char **argv) {
 
         ofstream output(outputFilename);
         ts.serializeTo(output);
+
+        output << "Syntax Tree:\n";
         optTree.value().serializeTo(output, pl0cc::symbols::symbolToName);
 
         output << flush;
